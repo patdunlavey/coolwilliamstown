@@ -32,8 +32,6 @@ function node_views_data() {
       'field' => 'title',
     ),
   );
-  $data['node']['table']['entity type'] = 'node';
-
 
   // For other base tables, explain how we join
   $data['node']['table']['join'] = array(
@@ -218,7 +216,7 @@ function node_views_data() {
       'handler' => 'views_handler_field_boolean',
       'click sortable' => TRUE,
       'output formats' => array(
-        'sticky' => array(t('Sticky'), ''),
+        'sticky' => array('', t('Sticky')),
       ),
     ),
     'filter' => array(
@@ -379,24 +377,13 @@ function node_views_data() {
 
   // uid field
   $data['node']['uid'] = array(
-    'title' => t('Author uid'),
-    'help' => t('The user authoring the content. If you need more fields then the uid add the content: author relationship'),
+    'title' => t('Author'),
+    'help' => t('Relate content to the user who created it.'),
     'relationship' => array(
-      'title' => t('Author'),
-      'help' => t('Relate content to the user who created it.'),
       'handler' => 'views_handler_relationship',
       'base' => 'users',
       'field' => 'uid',
       'label' => t('author'),
-    ),
-    'filter' => array(
-      'handler' => 'views_handler_filter_user_name',
-    ),
-    'argument' => array(
-      'handler' => 'views_handler_argument_numeric',
-    ),
-    'field' => array(
-      'handler' => 'views_handler_field_user',
     ),
   );
 
@@ -673,7 +660,8 @@ function node_row_node_view_preprocess_node(&$vars) {
   }
 
   if (!empty($options['comments']) && user_access('access comments') && $node->comment) {
-    $vars['content']['comments'] = comment_node_page_additions($node);
+    $build = comment_node_page_additions($node);
+    $vars['content']['comments'] = drupal_render($build);
   }
 }
 
@@ -695,9 +683,6 @@ function node_views_analyze($view) {
   // Check for something other than the default display:
   if ($view->base_table == 'node') {
     foreach ($view->display as $id => $display) {
-      if (empty($display->handler)) {
-        continue;
-      }
       if (!$display->handler->is_defaulted('access') || !$display->handler->is_defaulted('filters')) {
         // check for no access control
         $access = $display->handler->get_option('access');
