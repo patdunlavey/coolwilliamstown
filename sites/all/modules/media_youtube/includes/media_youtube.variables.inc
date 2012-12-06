@@ -1,5 +1,4 @@
 <?php
-// $Id: media_youtube.variables.inc,v 1.1.4.4 2011/01/11 18:40:39 aaron Exp $
 
 /**
  * @file media_youtube/includes/media_youtube.variables.inc
@@ -105,7 +104,16 @@ function media_youtube_variable_default($name = NULL) {
       'width' => 560,
       'height' =>340,
       'autoplay' => FALSE,
+      'related' => TRUE,
+      'hd' => FALSE,
+      'showsearch' => TRUE,
+      'modestbranding' => FALSE,
+      'showinfo'=> TRUE,
+      'version' => 3,
+      'theme' => 'dark',
       'fullscreen' => TRUE,
+      'wmode' => 'transparent',
+      'chromeless' => FALSE,
       'preview_uri' => 'youtube://v/-jubiv7QUco',
     );
   }
