@@ -179,18 +179,6 @@ function media_browser_list() {
       $or_condition->condition($local_condition);
     }
   }
-  if (!empty($types)) {
-    $condition->condition('f.type', $types, 'IN');
-  }
-  if (!empty($params['file_extensions'])) {
-    $extensions = array_filter(explode(' ', $params['file_extensions']));
-    foreach ($extensions as $extension) {
-      $condition->condition('f.uri', '%' . db_like('.' . $extension), 'LIKE');
-    }
-  }
-  if ($condition instanceof DatabaseCondition) {
-    $query->condition($condition);
-  }
 
   // Include remote files with the allowed file types.
   if (!empty($remote_types)) {

@@ -23,6 +23,18 @@ function _webform_defaults_markup() {
 }
 
 /**
+ * Implements _webform_theme_component().
+ */
+function _webform_theme_markup() {
+  return array(
+    'webform_display_markup' => array(
+      'render element' => 'element',
+      'file' => 'components/markup.inc',
+    ),
+  );
+}
+
+/**
  * Implements _webform_edit_component().
  */
 function _webform_edit_markup($component) {
@@ -36,9 +48,6 @@ function _webform_edit_markup($component) {
     '#format' => $component['extra']['format'],
     '#element_validate' => array('_webform_edit_markup_validate'),
   );
-
-  $form['extra']['description'] = array(); // No description for markup.
-  $form['display'] = array('#type' => 'markup'); // Hide the display options.
 
   return $form;
 }
@@ -57,14 +66,16 @@ function _webform_edit_markup_validate($form, &$form_state) {
  * Implements _webform_render_component().
  */
 function _webform_render_markup($component, $value = NULL, $filter = TRUE) {
+  $node = isset($component['nid']) ? node_load($component['nid']) : NULL;
+
   $element = array(
     '#type' => 'markup',
     '#title' => $filter ? NULL : $component['name'],
     '#weight' => $component['weight'],
-    '#markup' => $filter ? _webform_filter_values(check_markup($component['value'], $component['extra']['format'], '', TRUE), NULL, NULL, NULL, FALSE) : $component['value'],
+    '#markup' => $filter ? _webform_filter_values(check_markup($component['value'], $component['extra']['format'], '', TRUE), $node, NULL, NULL, FALSE) : $component['value'],
     '#format' => $component['extra']['format'],
     '#theme_wrappers' => array('webform_element'),
-    '#webform_component' => $component,
+    '#translatable' => array('title', 'markup'),
   );
 
   // TODO: Remove when #markup becomes available in D7.
@@ -77,5 +88,22 @@ function _webform_render_markup($component, $value = NULL, $filter = TRUE) {
  * Implements _webform_display_component().
  */
 function _webform_display_markup($component, $value, $format = 'html') {
-  return array();
+  $node = isset($component['nid']) ? node_load($component['nid']) : NULL;
+
+  return array(
+    '#weight' => $component['weight'],
+    '#theme' => 'webform_display_markup',
+    '#format' => $format,
+    '#value' => _webform_filter_values(check_markup($component['value'], $component['extra']['format'], '', TRUE), $node, NULL, NULL, FALSE),
+    '#translatable' => array('title'),
+  );
+}
+
+/**
+ * Format the output of data for this component.
+ */
+function theme_webform_display_markup($variables) {
+  // Markup components are not displayed but can be by overriding this theme
+  // function.
+  return '';
 }

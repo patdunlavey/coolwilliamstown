@@ -55,6 +55,10 @@ Drupal.behaviors.webformAltUI = {
 
     // Disable dragging on the submit button
     $('a.configure.button').closest('.form-builder-wrapper').draggable('destroy');
+
+    // Remove the field settings form from inside the node form before
+    // submitting the node form.
+    $('#webform-node-form').bind('submit', Drupal.behaviors.webformAltUI.removeNestedForms);
   },
   toggleInputs: function (event) {
     if ($(this).attr('checked')) {
@@ -176,6 +180,10 @@ Drupal.behaviors.webformAltUI = {
       // Ensure that the submit button is always at the bottom of the form
       fb.find('.button').closest('.form-builder-wrapper').appendTo(fb);
     }
+  },
+  removeNestedForms: function (submitEvent) {
+    $(submitEvent.target).find('form').remove();
+    return true;
   }
 };
 

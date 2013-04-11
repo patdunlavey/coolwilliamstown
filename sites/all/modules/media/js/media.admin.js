@@ -19,20 +19,9 @@ Drupal.behaviors.mediaAdmin = {
       if ($(':checkbox:checked', $('form#media-admin')).length != 0) {
         return confirm(Drupal.t('If you switch views, you will lose your selection.'));
       }
-<<<<<<< HEAD
-    }
-
-    $('.media-display-switch a').bind('click', show_confirm_if_existing_selections)
-    // Configure the "Add file" link to fire the media browser popup.
-    $('ul.action-links li', context).hide();
-    if ($('form.media-list-operation', context).length != 0) {
-      return;
-    }
-=======
     });
 
     // Configure the "Add file" link to fire the media browser popup.
->>>>>>> live
     var $launcherLink = $('<a class="media-launcher" href="#"></a>').html(Drupal.t('Add file'));
     $launcherLink.bind('click', function () {
       // This option format needs *serious* work.
@@ -151,10 +140,5 @@ Drupal.behaviors.mediaTypesAdmin = {
 };
 
 
-<<<<<<< HEAD
-
-})(jQuery);
-=======
->>>>>>> live
 
 })(jQuery);

@@ -15,6 +15,10 @@ Drupal.behaviors.formBuilderElement.attach = function(context) {
   if ($(context).is('div.form-builder-wrapper:not(.form-builder-processed)')) {
     $wrappers = $wrappers.add(context);
   }
+  // If the context itself is an element, add to the list.
+  else if ($(context).is('div.form-builder-element:not(.form-builder-processed)')) {
+    $elements = $elements.add(context);
+  }
 
   // Add a guard class.
   $wrappers.addClass('form-builder-processed');
@@ -90,13 +94,16 @@ Drupal.behaviors.formBuilder.attach = function(context) {
     stop: Drupal.formBuilder.stopDrag
   });
 
-  // This sets the height of the drag target to be at least as hight as the field
+  // This sets the height of the drag target to be at least as high as the field
   // palette so that field can be more easily dropped into an empty form.  IE6
   // does not respect min-height but does treat height in the same manner that
   // min-height would be expected.  So a check for browser and version is needed
   // here.
   var property = $.browser.msie && $.browser.version < 7 ? 'height' : 'min-height';
   $formbuilder.css(property, $('#form-builder-fields').height());
+
+  // Add the placeholder for an empty form.
+  Drupal.formBuilder.checkForm();
 };
 
 /**
@@ -120,6 +127,12 @@ Drupal.behaviors.formBuilderTabs.attach = function(context) {
   // Add the new tabs to the page.
   $tabs = $(tabs);
   $fieldsets.filter(':first').before($close).before($tabs);
+
+  // Remove 'fieldset-legend' class from tabs.
+  $tabs.find('.fieldset-legend').removeClass('fieldset-legend');
+
+  // Set clearfix on the parent div.
+  $tabs.parent().addClass('clearfix');
 
   // Hide all the fieldsets except the first.
   $fieldsets.not(':first').css('display', 'none');
@@ -147,7 +160,13 @@ Drupal.behaviors.formBuilderTabs.attach = function(context) {
  */
 Drupal.behaviors.formBuilderDeleteConfirmation = {};
 Drupal.behaviors.formBuilderDeleteConfirmation.attach = function(context) {
-  var $confirmForm = $('form.confirmation');
+  var $confirmForm = $('form.confirmation', context);
+
+  // If the confirmation form is the context.
+  if ($(context).is('form.confirmation')) {
+    $confirmForm = $(context);
+  }
+
   if ($confirmForm.length) {
     $confirmForm.submit(Drupal.formBuilder.deleteField);
     $confirmForm.find('a').click(Drupal.formBuilder.clickCancel);
@@ -182,7 +201,8 @@ Drupal.behaviors.formBuilderBlockScroll.attach = function(context) {
         return;
       }
 
-      var windowOffset = $(window).scrollTop() + parseInt($('body.toolbar').css('padding-top'));
+      var toolbarHeight = parseInt($('body.toolbar').css('padding-top'));
+      var windowOffset = $(window).scrollTop() + (toolbarHeight ? toolbarHeight : 0);
       var blockHeight = $block.height();
       var formBuilderHeight = $('#form-builder').height();
       if (windowOffset - blockScrollStart > 0) {
@@ -249,7 +269,9 @@ Drupal.formBuilder = {
   // replacing newer updates.
   lastUpdateTime: 0,
   // Status of mouse click.
-  mousePressed: 0
+  mousePressed: 0,
+  // Selector for a custom field configuration form.
+  fieldConfigureForm: false
 };
 
 /**
@@ -314,6 +336,7 @@ Drupal.formBuilder.editField = function() {
     return false;
   }
 
+  // Show loading indicators.
   $link.addClass('progress');
 
   // If clicking on the link a second time, close the form instead of open.
@@ -326,6 +349,10 @@ Drupal.formBuilder.editField = function() {
   }
 
   var getForm = function() {
+    if (Drupal.formBuilder.fieldConfigureForm) {
+      $(Drupal.formBuilder.fieldConfigureForm).html(Drupal.settings.formBuilder.fieldLoading);
+    }
+
     $.ajax({
       url: $link.attr('href'),
       type: 'GET',
@@ -352,8 +379,10 @@ Drupal.formBuilder.deleteField = function() {
     $('ul.form-builder-fields').find('li.' + elementId).show('slow');
     // Remove the field from the form.
     $(this).remove();
-    // Check for empty fieldsets.
-    Drupal.formBuilder.checkFieldsets(null, null, true);
+
+    // Check for an entirely empty form and for empty fieldsets.
+    Drupal.formBuilder.checkForm();
+    Drupal.formBuilder.checkFieldsets([], true);
   });
 };
 
@@ -373,7 +402,16 @@ Drupal.formBuilder.displayForm = function(response) {
   }
 
   var $preview = $('#form-builder-element-' + response.elementId);
-  var $form = $(response.html).insertAfter($preview).css('display', 'none');
+  var $form = $(response.html);
+
+  if (Drupal.formBuilder.fieldConfigureForm) {
+    $(Drupal.formBuilder.fieldConfigureForm).html($form);
+    $form.css('display', 'none');
+  }
+  else {
+    $form.insertAfter($preview).css('display', 'none');
+  }
+
   Drupal.attachBehaviors($form.get(0));
 
   $form
@@ -383,12 +421,12 @@ Drupal.formBuilder.displayForm = function(response) {
     // Manually add a hidden element to pass additional data on submit.
     .prepend('<input type="hidden" name="return" value="field" />')
     // Add in any messages from the server.
-    .find('fieldset:visible:first').prepend(response.messages);
+    .find('fieldset:first').find('.fieldset-wrapper:first').prepend(response.messages);
 
   $form.slideDown(function() {
-    $form.parents('div.form-builder-wrapper:first').find('a.progress').removeClass('progress');
+    $preview.parents('div.form-builder-wrapper:first').find('a.progress').removeClass('progress');
+    $form.find('input:visible:first').focus();
   });
-  //Drupal.unfreezeHeight();
 
   Drupal.formBuilder.updatingElement = false;
 };
@@ -470,7 +508,7 @@ Drupal.formBuilder.updateElement = function(response) {
   // Display messages, if any.
   $configureForm.find('.messages').remove();
   if (response.messages) {
-    $configureForm.find('fieldset:visible:first').prepend(response.messages);
+    $configureForm.find('fieldset:visible:first').find('.fieldset-wrapper:first').prepend(response.messages);
   }
 
   // Do not update the element if errors were received.
@@ -482,7 +520,7 @@ Drupal.formBuilder.updateElement = function(response) {
     // Expand root level fieldsets after updating to prevent them from closing
     // after every update.
     $new.children('fieldset.collapsible').removeClass('collapsed');
-    Drupal.attachBehaviors($new.parent().get(0));
+    Drupal.attachBehaviors($new.get(0));
   }
 
   // Set the variable stating we're done updating.
@@ -508,8 +546,11 @@ Drupal.formBuilder.addElement = function(response) {
   // Set the variable stating we're done updating.
   Drupal.formBuilder.updatingElement = false;
 
-  // Insert the new position form containing the new element.
+  // Insert the new position form containing the new element, but maintain
+  // the existing form action.
+  var positionAction = $('#form-builder-positions').attr('action');
   $('#form-builder-positions').replaceWith(response.positionForm);
+  $('#form-builder-positions').attr('action', positionAction);
 
   // Submit the new positions form to save the new element position.
   Drupal.formBuilder.updateElementPosition($new.get(0));
@@ -637,7 +678,7 @@ Drupal.formBuilder.dropElement = function (event, ui) {
   Drupal.formBuilder.activeDragUi = false;
 
   // Scroll the palette into view.
-  $(window).scroll();
+  $(window).triggerHandler('scroll');
 };
 
 /**
@@ -693,7 +734,7 @@ Drupal.formBuilder.stopDrag = function(e, ui) {
   Drupal.formBuilder.checkFieldsets();
 
   // Scroll the palette into view.
-  $(window).scroll();
+  $(window).triggerHandler('scroll');
 };
 
 /**
@@ -707,8 +748,12 @@ Drupal.formBuilder.stopDrag = function(e, ui) {
  *   An array of DOM objects within a fieldset that should not be included when
  *   checking if the fieldset is empty.
  */
-Drupal.formBuilder.checkFieldsets = function(exclusions) {
+Drupal.formBuilder.checkFieldsets = function(exclusions, animate) {
   var $wrappers = $('#form-builder div.form-builder-element > fieldset.form-builder-fieldset > div.fieldset-wrapper');
+
+  // Make sure exclusions is an array and always skip any description.
+  exclusions = exclusions ? exclusions : [];
+  exclusions.push('.fieldset-description');
 
   // Insert a placeholder into all empty fieldset wrappers.
   $wrappers.each(function() {
@@ -719,7 +764,12 @@ Drupal.formBuilder.checkFieldsets = function(exclusions) {
 
     if (children.length == 0) {
       // No children, add a placeholder.
-      $(this).prepend(Drupal.settings.formBuilder.emptyFieldset);
+      if (animate) {
+        $(Drupal.settings.formBuilder.emptyFieldset).css('display', 'none').appendTo(this).slideDown();
+      }
+      else {
+        $(Drupal.settings.formBuilder.emptyFieldset).appendTo(this);
+      }
     }
     else if (children.length > 1 && children.hasClass('form-builder-empty-placeholder')) {
       // The fieldset has at least one element besides the placeholder, remove
@@ -727,6 +777,16 @@ Drupal.formBuilder.checkFieldsets = function(exclusions) {
       $(this).find('.form-builder-empty-placeholder').remove();
     }
   });
+};
+
+/**
+ * Check the root form tag and place explanatory text if the form is empty.
+ */
+Drupal.formBuilder.checkForm = function() {
+  var $formBuilder = $('#form-builder');
+  if ($formBuilder.children('div.form-builder-wrapper').length == 0) {
+    $formBuilder.append(Drupal.settings.formBuilder.emptyForm);
+  }
 };
 
 Drupal.formBuilder.setActive = function(element, link) {
@@ -746,12 +806,16 @@ Drupal.formBuilder.unsetActive = function() {
 
 Drupal.formBuilder.closeActive = function(callback) {
   if (Drupal.formBuilder.activeElement) {
-    var $activeForm = $(Drupal.formBuilder.activeElement).find('form');
+    var $activeForm = Drupal.formBuilder.fieldConfigureForm ? $(Drupal.formBuilder.fieldConfigureForm).find('form') : $(Drupal.formBuilder.activeElement).find('form');
 
     if ($activeForm.length) {
       Drupal.freezeHeight();
       $activeForm.slideUp(function(){
         $(this).remove();
+        // Set a message in the custom configure form location if it exists.
+        if (Drupal.formBuilder.fieldConfigureForm) {
+          $(Drupal.formBuilder.fieldConfigureForm).html(Drupal.settings.formBuilder.noFieldSelected);
+        }
         if (callback) {
           callback.call();
         }

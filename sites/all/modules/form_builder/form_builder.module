@@ -73,7 +73,19 @@ function form_builder_theme() {
       'render element' => 'element',
       'file' => 'includes/form_builder.admin.inc',
     ),
+    'form_builder_empty_form' => array(
+      'variables' => array(),
+      'file' => 'includes/form_builder.admin.inc',
+    ),
     'form_builder_empty_fieldset' => array(
+      'variables' => array(),
+      'file' => 'includes/form_builder.admin.inc',
+    ),
+    'form_builder_no_field_selected' => array(
+      'variables' => array(),
+      'file' => 'includes/form_builder.admin.inc',
+    ),
+    'form_builder_field_loading' => array(
       'variables' => array(),
       'file' => 'includes/form_builder.admin.inc',
     ),
@@ -101,7 +113,7 @@ function form_builder_block_info() {
  */
 function form_builder_block_view($delta = '') {
   $block = array();
-  if ($delta == 'fields') {
+  if ($delta == 'fields' && form_builder_active_form()) {
     module_load_include('inc', 'form_builder', 'includes/form_builder.admin');
     $block['content'] = form_builder_field_palette();
   }
@@ -161,6 +173,9 @@ function form_builder_form_builder_properties($form_type) {
     'description' => array(
       'form' => 'form_builder_property_description_form',
     ),
+    'disabled' => array(
+      'form' => 'form_builder_property_disabled_form',
+    ),
     'weight' => array(
       'form' => 'form_builder_property_weight_form',
     ),
@@ -170,6 +185,9 @@ function form_builder_form_builder_properties($form_type) {
     'markup' => array(
       'form' => 'form_builder_property_markup_form',
       'submit' => array('form_builder_property_markup_form_submit'),
+    ),
+    'maxlength' => array(
+      'form' => 'form_builder_property_maxlength_form',
     ),
     'required' => array(
       'form' => 'form_builder_property_required_form',
@@ -298,14 +316,21 @@ function form_builder_active_form($new_type = NULL, $new_id = NULL) {
 function form_validate_integer(&$element, &$form_state) {
   $value = $element['#value'];
 
-  // Remove commas from numbers.
-  $new_value = str_replace(array(' ', ','), '', $element);
-  if (is_int($new_value) && $new_value != $value) {
-    form_set_value($element, $new_value, $form_state);
-    drupal_set_message(t('Commas and spaces were removed from the %title field.', array('%title' => $element['#title'])));
+  if (empty($value)) {
+    return;
   }
-  elseif (!is_int($new_value)) {
+
+  // Remove thousands separators from numbers.
+  $locale_info = localeconv();
+  $separator = empty($locale_info['thousands_sep']) ? ',' : $locale_info['thousands_sep'];
+  $new_value = str_replace(array(' ', $separator), '', $value);
+  $int_value = $new_value * 1;
+  $new_value = (string) $int_value;
+  if (!is_int($int_value) || $int_value === 0) {
     form_error($element, t('The %title field value must be an integer.', array('%title' => $element['#title'])));
+  }
+  elseif ($new_value !== $value) {
+    form_set_value($element, $new_value, $form_state);
   }
 }
 
@@ -315,14 +340,21 @@ function form_validate_integer(&$element, &$form_state) {
 function form_validate_decimal(&$element, &$form_state) {
   $value = $element['#value'];
 
-  // Remove commas from numbers.
-  $new_value = str_replace(array(' ', ','), '', $element);
-  if (is_int($new_value) && $new_value != $value) {
-    form_set_value($element, $new_value, $form_state);
-    drupal_set_message(t('Commas and spaces were removed from the %title field.', array('%title' => $element['#title'])));
+  if (empty($value)) {
+    return;
   }
-  elseif (!is_int($new_value)) {
+
+  // Remove thousands separators from numbers.
+  $locale_info = localeconv();
+  $separator = empty($locale_info['thousands_sep']) ? ',' : $locale_info['thousands_sep'];
+  $new_value = str_replace(array(' ', $separator), '', $value);
+  $float_value = $new_value * 1.0;
+  $new_value = (string) $float_value;
+  if (!is_float($float_value) || $float_value === 0.0) {
     form_error($element, t('The %title field value must be a decimal.', array('%title' => $element['#title'])));
+  }
+  elseif ($new_value !== $value) {
+    form_set_value($element, $new_value, $form_state);
   }
 }
 
@@ -330,6 +362,10 @@ function form_validate_decimal(&$element, &$form_state) {
  * Generic validation function to check for a valid e-mail value.
  */
 function form_validate_email(&$element, &$form_state) {
+  if (empty($element['#value'])) {
+    return;
+  }
+
   if (valid_email_address($element['#value'])) {
     form_error($element, t('The %title field value must be a valid e-mail address.', array('%title' => $element['#title'])));
   }
@@ -339,6 +375,10 @@ function form_validate_email(&$element, &$form_state) {
  * Generic validation function to check for a valid url value.
  */
 function form_validate_url(&$element, &$form_state) {
+  if (empty($element['#value'])) {
+    return;
+  }
+
   if (valid_url($element['#value'], isset($element['#absolute_url']) ? $element['#absolute_url'] : TRUE)) {
     form_error($element, t('The %title field value must be a valid URL.', array('%title' => $element['#title'])));
   }

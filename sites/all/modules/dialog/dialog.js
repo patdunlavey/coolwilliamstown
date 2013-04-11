@@ -12,7 +12,13 @@ Drupal.behaviors.dialog = {
     $("body").once("dialog", function() {
       Drupal.dialog = $('<div id="dialog"></div>').dialog({
         autoOpen: false,
-        modal: true
+        modal: true,
+        close: function (event, ui) {
+          var element = Drupal.dialog;
+          // Process any other behaviors on the content, and close the dialog box.
+          Drupal.detachBehaviors(element);
+          $(this).hide();
+        }
       });
     });
 
