@@ -4,8 +4,3 @@ sites/*/settings*.php
 # Ignore paths that contain user-generated content.
 sites/*/files
 sites/*/private
-/button_up_images/
-/.komodotools/
-db-backups/
-.DS_Store
-sites/all/.DS_Store

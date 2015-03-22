@@ -3,7 +3,7 @@ div.options-widget .draggable a.tabledrag-handle {
   padding-right: .3em /* RTL */
 }
 
-div.form-options fieldset.options {
+div.form-options div.options {
   margin-bottom: 0;
 }
 
@@ -40,6 +40,10 @@ div.options-widget a.remove {
 }
 
 div.default-value-pattern-match {
+  float: left; /* RTL */
+}
+
+div.remove-default {
   float: left; /* RTL */
 }
 

@@ -12,12 +12,10 @@
 function theme_options($variables) {
   $element = $variables['element'];
 
-  $classes = array();
-  if (isset($element['#attributes']['class'])) {
-    $classes = $element['#attributes']['class'];
-  }
+  element_set_attributes($element, array('id'));
+  _form_set_class($element, array('form-options'));
 
-  $classes[] = 'form-options';
+  $classes = &$element['#attributes']['class'];
   $classes[] = 'options-key-type-'. $element['#key_type'];
 
   if ($element['#key_type_toggled']) {
@@ -30,6 +28,12 @@ function theme_options($variables) {
 
   if (isset($element['#multiple']) && $element['#multiple']) {
     $classes[] = 'options-multiple';
+  }
+
+  // Replace the error class from wrapper div, which doesn't display well with
+  // complex elements like Options Element.
+  if ($key = array_search('error', $classes, TRUE)) {
+    $classes[$key] = 'options-error';
   }
 
   $options = '';
@@ -53,8 +57,8 @@ function theme_options($variables) {
   }
 
   $output = '';
-  $output .= '<div class="' . implode(' ', $classes) .'">';
-  $output .= theme('fieldset', array('element' => array(
+  $output .= '<div' . drupal_attributes($element['#attributes']) . '>';
+  $output .= theme('container', array('element' => array(
     '#title' => t('Options'),
     '#collapsible' => FALSE,
     '#children' => $options,
@@ -184,7 +188,6 @@ function _form_options_expand($element) {
 
   // Remove properties that will confuse the FAPI.
   unset($element['#options']);
-  $element['#required'] = FALSE;
 
   return $element;
 }
@@ -353,14 +356,14 @@ function _form_options_to_text($options, $key_type) {
 function _form_options_from_text($text, $key_type, $flat = FALSE, &$duplicates = array()) {
   $keys = array();
   $items = array();
-  $rows = array_filter(explode("\n", trim($text)));
+  $rows = array_filter(explode("\n", trim($text)), 'strlen');
   $group = FALSE;
   foreach ($rows as $row) {
     $row = trim($row);
     $matches = array();
 
     // Check for a simple empty row.
-    if (empty($row)) {
+    if (!strlen($row)) {
       continue;
     }
     // Check if this row is a group.
